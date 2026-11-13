@@ -1,0 +1,70 @@
+import requests
+
+def obter_dados_meteorologicos():
+    """
+    Realiza uma requisição HTTP GET para a API Meteorológica Offline local,
+    interpreta a resposta JSON e retorna um dicionário organizado com as
+    variáveis climáticas de Jaraguá do Sul - SC.
+    """
+    # Endpoint local disponibilizado pela API Meteorológica Offline (FastAPI)
+    url = "http://127.0.0.1:8000/v1/forecast"
+    
+    # Parâmetros obrigatórios exigidos pela documentação (Jaraguá do Sul - SC)
+    parametros = {
+        "latitude": -26.4851,
+        "longitude": -49.0713
+    }
+    
+    try:
+        # Executa a requisição HTTP GET com limite de espera (timeout) de 10 segundos
+        resposta = requests.get(url, params=parametros, timeout=10)
+        
+        # Verifica se o código de status HTTP indica erro (4xx ou 5xx)
+        resposta.raise_for_status()
+        
+        # Converte o corpo da resposta JSON para um dicionário Python
+        dados = resposta.json()
+        
+        # Valida se a chave principal 'current' está presente no JSON retornado
+        if "current" not in dados:
+            raise ValueError("Estrutura JSON inesperada: chave 'current' ausente na resposta.")
+            
+        condicoes_atuais = dados["current"]
+        
+        # Extrai cada variável meteorológica conforme a documentação da API
+        temperatura = condicoes_atuais.get("temperature_2m")
+        umidade = condicoes_atuais.get("relative_humidity_2m")
+        sensacao_termica = condicoes_atuais.get("apparent_temperature")
+        precipitacao = condicoes_atuais.get("precipitation")
+        vento = condicoes_atuais.get("wind_speed_10m")
+        horario = condicoes_atuais.get("time")
+        
+        # Retorna o dicionário padronizado para consumo pela interface Streamlit
+        return {
+            "temperatura": temperatura,
+            "umidade_relativa": umidade,
+            "sensacao_termica": sensacao_termica,
+            "precipitacao": precipitacao,
+            "velocidade_vento": vento,
+            "horario": horario
+        }
+
+    except requests.exceptions.ConnectionError:
+        raise ConnectionError("Falha de conexão: verifique se a API Meteorológica Offline está rodando na porta 8000.")
+    except requests.exceptions.Timeout:
+        raise TimeoutError("Tempo limite excedido ao aguardar resposta da API.")
+    except requests.exceptions.HTTPError as err:
+        raise RuntimeError(f"Erro HTTP retornado pela API: {err}")
+    except KeyError as err:
+        raise KeyError(f"Campo obrigatório ausente no JSON da API: {err}")
+    except Exception as erro:
+        raise Exception(f"Erro inesperado ao processar dados meteorológicos: {erro}")
+
+# Bloco para teste isolado do consumidor pelo terminal (python consumidor_api.py)
+if __name__ == "__main__":
+    try:
+        resultado = obter_dados_meteorologicos()
+        print("Teste do consumidor realizado com sucesso:")
+        print(resultado)
+    except Exception as e:
+        print(f"Falha no teste: {e}")
